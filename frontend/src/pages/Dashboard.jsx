@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import SkillRadarChart from "../SkillRadarChart";
 
 import {
 
@@ -28,6 +29,9 @@ import {
   getRoles,
 
 } from "../services/api";
+
+
+
 
 
 
@@ -280,6 +284,7 @@ function Dashboard() {
 
 
 
+      <div className="profile-chart-layout">
       {/* PROFILE INPUT */}
 
       <section className="profile-panel">
@@ -710,6 +715,21 @@ function Dashboard() {
 
       </section>
 
+      <section className="dashboard-card radar-side">
+        <SkillRadarChart
+          data={[
+            { skill: "Python", current: skills.toLowerCase().includes("python") ? 75 : 0, required: 90 },
+            { skill: "SQL", current: skills.toLowerCase().includes("sql") ? 60 : 0, required: 85 },
+            { skill: "Machine Learning", current: skills.toLowerCase().includes("machine learning") ? 70 : 0, required: 90 },
+            { skill: "Data Analysis", current: skills.toLowerCase().includes("data analysis") ? 80 : 0, required: 85 },
+            { skill: "Communication", current: skills.toLowerCase().includes("communication") ? 70 : 0, required: 80 },
+          ]}
+        />
+      </section>
+    </div>
+
+
+
 
 
       {/* RESULTS */}
@@ -1033,6 +1053,7 @@ function Dashboard() {
 
 
             </div>
+
 
 
 

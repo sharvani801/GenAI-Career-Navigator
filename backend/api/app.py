@@ -1,5 +1,8 @@
+
 from typing import List, Optional
 import json
+import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -8,6 +11,38 @@ from pydantic import BaseModel, Field
 
 from backend.core.career_engine import create_career_plan
 from backend.ai.genai import generate_career_response
+
+
+# ==========================================
+# LOGGING CONFIGURATION
+# ==========================================
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+logger = logging.getLogger("career_navigator")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+if not logger.handlers:
+    file_handler = RotatingFileHandler(
+        LOG_DIR / "app.log",
+        maxBytes=1_000_000,
+        backupCount=3,
+        encoding="utf-8",
+    )
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s"
+    )
+
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
 
 # ==========================================
@@ -47,48 +82,19 @@ app.add_middleware(
 # ==========================================
 
 class AnalyzeRequest(BaseModel):
-
-    target_job: str = Field(
-        ...,
-        min_length=1
-    )
-
-    current_skills: List[str] = Field(
-        default_factory=list
-    )
-
-    study_time: int = Field(
-        default=10,
-        ge=1,
-        le=60
-    )
-
+    target_job: str = Field(..., min_length=1)
+    current_skills: List[str] = Field(default_factory=list)
+    study_time: int = Field(default=10, ge=1, le=60)
     experience_level: str = "Beginner"
-
     learning_style: str = "Project-Based"
 
 
 class AIRequest(BaseModel):
-
-    target_job: str = Field(
-        ...,
-        min_length=1
-    )
-
-    current_skills: List[str] = Field(
-        default_factory=list
-    )
-
+    target_job: str = Field(..., min_length=1)
+    current_skills: List[str] = Field(default_factory=list)
     missing_skills: Optional[List[str]] = None
-
-    study_time: int = Field(
-        default=10,
-        ge=1,
-        le=60
-    )
-
+    study_time: int = Field(default=10, ge=1, le=60)
     experience_level: str = "Beginner"
-
     learning_style: str = "Project-Based"
 
 
@@ -98,6 +104,7 @@ class AIRequest(BaseModel):
 
 @app.get("/")
 def root():
+    logger.info("Health check endpoint accessed")
 
     return {
         "message": "GenAI Career Navigator API is running",
@@ -112,35 +119,28 @@ def root():
 
 @app.get("/roles")
 def get_roles():
-
-    roles_file = Path("data/career_roles.json")
+    logger.info("Job roles requested")
+    roles_file = BASE_DIR / "data" / "career_roles.json"
 
     try:
-
-        with open(
-            roles_file,
-            "r",
-            encoding="utf-8"
-        ) as file:
-
+        with open(roles_file, "r", encoding="utf-8") as file:
             roles = json.load(file)
 
-        return {
-            "roles": roles
-        }
+        logger.info("Job roles loaded successfully")
+        return {"roles": roles}
 
     except FileNotFoundError:
-
+        logger.exception("career_roles.json was not found")
         raise HTTPException(
             status_code=500,
-            detail="career_roles.json file was not found."
+            detail="career_roles.json file was not found.",
         )
 
     except json.JSONDecodeError:
-
+        logger.exception("career_roles.json contains invalid JSON")
         raise HTTPException(
             status_code=500,
-            detail="career_roles.json contains invalid JSON."
+            detail="career_roles.json contains invalid JSON.",
         )
 
 
@@ -149,35 +149,35 @@ def get_roles():
 # ==========================================
 
 @app.post("/analyze")
-def analyze_career(
-    request: AnalyzeRequest
-):
+def analyze_career(request: AnalyzeRequest):
+    logger.info(
+        "Career analysis requested for job: %s",
+        request.target_job,
+    )
 
     try:
-
         result = create_career_plan(
-
             target_job=request.target_job,
-
             current_skills=request.current_skills,
-
             study_time=request.study_time,
-
             experience_level=request.experience_level,
-
             learning_style=request.learning_style,
         )
 
         if result is None:
-
+            logger.warning(
+                "Target job not found: %s",
+                request.target_job,
+            )
             raise HTTPException(
                 status_code=404,
-                detail=(
-                    f"Target job "
-                    f"'{request.target_job}' "
-                    f"was not found."
-                )
+                detail=f"Target job '{request.target_job}' was not found.",
             )
+
+        logger.info(
+            "Career analysis completed successfully for job: %s",
+            request.target_job,
+        )
 
         return {
             "success": True,
@@ -185,17 +185,16 @@ def analyze_career(
         }
 
     except HTTPException:
-
         raise
 
-    except Exception as error:
-
+    except Exception:
+        logger.exception(
+            "Career analysis failed for job: %s",
+            request.target_job,
+        )
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Career analysis failed: "
-                f"{error}"
-            )
+            detail="Career analysis failed. Check the application logs.",
         )
 
 
@@ -204,60 +203,48 @@ def analyze_career(
 # ==========================================
 
 @app.post("/generate-ai")
-def generate_ai_plan(
-    request: AIRequest
-):
+def generate_ai_plan(request: AIRequest):
+    logger.info(
+        "AI career plan requested for job: %s",
+        request.target_job,
+    )
 
     try:
-
         missing_skills = request.missing_skills
 
-        # If missing skills were not provided,
-        # calculate them automatically.
         if missing_skills is None:
-
             career_result = create_career_plan(
-
                 target_job=request.target_job,
-
                 current_skills=request.current_skills,
-
                 study_time=request.study_time,
-
                 experience_level=request.experience_level,
-
                 learning_style=request.learning_style,
             )
 
             if career_result is None:
-
+                logger.warning(
+                    "Target job not found for AI plan: %s",
+                    request.target_job,
+                )
                 raise HTTPException(
                     status_code=404,
-                    detail=(
-                        f"Target job "
-                        f"'{request.target_job}' "
-                        f"was not found."
-                    )
+                    detail=f"Target job '{request.target_job}' was not found.",
                 )
 
-            missing_skills = career_result[
-                "missing_skills"
-            ]
+            missing_skills = career_result["missing_skills"]
 
-        # Generate personalized GenAI response
         ai_response = generate_career_response(
-
             target_job=request.target_job,
-
             current_skills=request.current_skills,
-
             missing_skills=missing_skills,
-
             study_time=request.study_time,
-
             experience_level=request.experience_level,
-
             learning_style=request.learning_style,
+        )
+
+        logger.info(
+            "AI career plan generated successfully for job: %s",
+            request.target_job,
         )
 
         return {
@@ -267,17 +254,16 @@ def generate_ai_plan(
         }
 
     except HTTPException:
-
         raise
 
-    except Exception as error:
-
+    except Exception:
+        logger.exception(
+            "AI career plan generation failed for job: %s",
+            request.target_job,
+        )
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"AI generation failed: "
-                f"{error}"
-            )
+            detail="AI generation failed. Check the application logs.",
         )
 
 
@@ -286,7 +272,6 @@ def generate_ai_plan(
 # ==========================================
 
 if __name__ == "__main__":
-
     import uvicorn
 
     uvicorn.run(
