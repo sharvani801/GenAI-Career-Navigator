@@ -1,48 +1,57 @@
 
 import {
-  Radar,
+  ResponsiveContainer,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
+  Radar,
   Legend,
-  ResponsiveContainer,
   Tooltip,
 } from "recharts";
 
-const sampleData = [
-  { skill: "Python", current: 75, required: 90 },
-  { skill: "SQL", current: 60, required: 85 },
-  { skill: "Machine Learning", current: 50, required: 90 },
-  { skill: "Data Analysis", current: 80, required: 85 },
-  { skill: "Communication", current: 70, required: 80 },
-];
+export default function SkillRadarChart({ data = [] }) {
+  const chartData = Array.isArray(data)
+    ? data.filter(
+        (item) =>
+          item &&
+          typeof item.skill === "string" &&
+          Number.isFinite(Number(item.current)) &&
+          Number.isFinite(Number(item.required))
+      )
+    : [];
 
-export default function SkillRadarChart({ data = sampleData }) {
+  if (chartData.length === 0) {
+    return (
+      <div className="flex min-h-64 items-center justify-center text-gray-500">
+        Analyze a career to see your skill radar chart.
+      </div>
+    );
+  }
+
   return (
-    <div
-      style={{
-        width: "100%",
-        height: 400,
-        padding: "20px",
-        boxSizing: "border-box",
-      }}
-    >
-      <h3 style={{ marginBottom: "15px" }}>
-        Current Skills vs Required Skills
-      </h3>
-
-      <ResponsiveContainer width="100%" height="85%">
-        <RadarChart data={data} outerRadius="65%">
+    <div className="w-full">
+      <ResponsiveContainer width="100%" height={350}>
+        <RadarChart
+          data={chartData}
+          outerRadius="72%"
+          margin={{ top: 20, right: 35, bottom: 20, left: 35 }}
+        >
           <PolarGrid />
 
-          <PolarAngleAxis dataKey="skill" />
+          <PolarAngleAxis
+            dataKey="skill"
+            tick={{ fontSize: 11 }}
+          />
 
           <PolarRadiusAxis
-            angle={30}
+            angle={90}
             domain={[0, 100]}
             tickCount={6}
           />
+
+          <Tooltip />
+          <Legend />
 
           <Radar
             name="Current Skills"
@@ -55,13 +64,10 @@ export default function SkillRadarChart({ data = sampleData }) {
           <Radar
             name="Required Skills"
             dataKey="required"
-            stroke="#9333ea"
-            fill="#9333ea"
-            fillOpacity={0.2}
+            stroke="#16a34a"
+            fill="#16a34a"
+            fillOpacity={0.15}
           />
-
-          <Tooltip />
-          <Legend />
         </RadarChart>
       </ResponsiveContainer>
     </div>
