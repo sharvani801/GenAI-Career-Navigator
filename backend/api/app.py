@@ -60,7 +60,7 @@ app = FastAPI(
 
 
 # ==========================================
-# CORS
+# CORS CONFIGURATION
 # ==========================================
 
 app.add_middleware(
@@ -70,6 +70,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5175",
         "http://127.0.0.1:5175",
+        "https://gen-ai-career-navigator.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
