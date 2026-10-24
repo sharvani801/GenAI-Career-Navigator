@@ -717,13 +717,41 @@ function Dashboard() {
 
       <section className="dashboard-card radar-side">
         <SkillRadarChart
-          data={[
-            { skill: "Python", current: skills.toLowerCase().includes("python") ? 75 : 0, required: 90 },
-            { skill: "SQL", current: skills.toLowerCase().includes("sql") ? 60 : 0, required: 85 },
-            { skill: "Machine Learning", current: skills.toLowerCase().includes("machine learning") ? 70 : 0, required: 90 },
-            { skill: "Data Analysis", current: skills.toLowerCase().includes("data analysis") ? 80 : 0, required: 85 },
-            { skill: "Communication", current: skills.toLowerCase().includes("communication") ? 70 : 0, required: 80 },
-          ]}
+          data={(() => {
+            if (!result) return [];
+
+            const matching = Array.isArray(result.matching_skills)
+              ? result.matching_skills
+              : [];
+            const missing = Array.isArray(result.missing_skills)
+              ? result.missing_skills
+              : [];
+            const required = Array.isArray(result.required_skills)
+              && result.required_skills.length > 0
+              ? result.required_skills
+              : [...matching, ...missing];
+
+            const matchingSet = new Set(
+              matching
+                .filter((skill) => typeof skill === "string")
+                .map((skill) => skill.trim().toLowerCase())
+            );
+
+            const seen = new Set();
+            return required
+              .filter((skill) => typeof skill === "string" && skill.trim())
+              .filter((skill) => {
+                const key = skill.trim().toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              })
+              .map((skill) => ({
+                skill: skill.trim(),
+                current: matchingSet.has(skill.trim().toLowerCase()) ? 100 : 0,
+                required: 100,
+              }));
+          })()}
         />
       </section>
     </div>
